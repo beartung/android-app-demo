@@ -1,0 +1,103 @@
+apply plugin: 'com.android.application'
+apply plugin: 'maven'
+
+android {
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdkVersion rootProject.ext.compileSdkVersion
+
+    defaultConfig {
+        versionCode VERSION_CODE.toInteger()
+        versionName "${VERSION_NAME}"
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'AndroidManifest.xml'
+            java.srcDirs = ['src']
+            resources.srcDirs = ['src']
+            aidl.srcDirs = ['src']
+            renderscript.srcDirs = ['src']
+            res.srcDirs = ['res']
+            assets.srcDirs = ['assets']
+        }
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("demo.keystore")
+            storePassword "123456"
+            keyAlias "demo.keystore"
+            keyPassword "123456"
+        }
+    }
+    buildTypes {
+        release {
+            proguardFile 'proguard-project.txt'
+            signingConfig signingConfigs.release
+            jniDebuggable false
+            debuggable false
+            minifyEnabled true
+            zipAlignEnabled true
+        }
+        beta {
+            proguardFile 'proguard-project.txt'
+            signingConfig signingConfigs.release
+            jniDebuggable false
+            debuggable true
+            minifyEnabled false
+            zipAlignEnabled true
+        }
+        debug {
+            signingConfig signingConfigs.release
+            jniDebuggable true
+            debuggable true
+            zipAlignEnabled true
+        }
+    }
+
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'armeabi-v7a'
+            universalApk false
+        }
+    }
+
+}
+
+String compileLib(String libName) {
+    def name = libName.toUpperCase().replace("-", "_")
+    println "compileLib srcname " + libName + " prop name " + name
+    def libKeys = [ "VERSION", "LINK", "GROUP" ]
+    def libMap = [:]
+
+    for (k in libKeys) {
+        libMap.put(k, project.ext.properties.get(name + "_LIB_" + k))
+    }
+
+    libMap.each { println "$it.key: $it.value" }
+
+    def link = libMap.get("LINK")
+    def version = libMap.get("VERSION")
+    def group = libMap.get("GROUP")
+    if (link.equalsIgnoreCase("version")) {
+        println "compile version " + version
+        dependencies.compile "${group}:${libName}:${version}"
+    } else if (link.equalsIgnoreCase("git")) {
+        println "compile project " + libName
+        dependencies.compile project(":" + libName)
+    }
+}
+
+dependencies {
+    compile "com.android.support:support-v4:${SUPPORT_V4_VERSION}"
+    compile "com.android.support:appcompat-v7:${APPCOMPAT_V7_VERSION}"
+    compileLib("demo-net")
+    compile fileTree(dir: 'libs', include: ['*.jar'])
+}
