@@ -1,19 +1,72 @@
-# youshop 安卓app demo#
+# android app demo for gradle modules #
 
-## 请仔细阅读gradle.properties说明 ##
+## config gradle.properties
 
-    VERSION_NAME=0.1.0-SNAPSHOT //版本号
-    ARTIFACT=demo //模块名
-    GROUP=com.youshop //组名，统一使用com.youshop
+### 1 please config your nexus url
 
-    BUILD_TOOLS_VERSION=23.0.0 //build tools版本，如果不满足，自动找最高的
-    COMPILE_SDK_VERSION=23 // sdk 版本，如果不满足，自动找最高的
-    ANDROID_GRADLE_PLUGIN_VERSION=1.3.1 //gradle plugin 版本
+    NEXUS_URL=http://YOUR_IP_AND_PORT/nexus/content/repositories/youshop-release/
 
-## 打release包 ##
+### 2 add all your modules to settings.gradle
 
-    修改gradle.properties里的版本号VERSION_NAME为x.y.z，然后 gradle uploadArchives
+    include ':demo-net'
+    include ':app-demo'
 
-## 打snapshots包 ##
+### 3 config your module link type
 
-    修改gradle.properties里的版本号VERSION_NAME为x.y.z-SNAPSHOT，然后 gradle uploadArchives
+#### 3.1 link with version using gradle dependencies
+
+    DEMO_NET_LIB_LINK=version
+    DEMO_NET_LIB_VERSION=0.1.0
+    DEMO_NET_LIB_GROUP=com.lib
+    DEMO_NET_LIB_REPO=git@github.com:beartung/android-demo-net.git
+    DEMO_NET_LIB_BRANCH=master
+    DEMO_NET_LIB_HASH=
+
+#### 3.2 link with codes using git repo
+
+    DEMO_NET_LIB_LINK=git
+    DEMO_NET_LIB_VERSION=0.1.0
+    DEMO_NET_LIB_GROUP=com.lib
+    DEMO_NET_LIB_REPO=git@github.com:beartung/android-demo-net.git
+    DEMO_NET_LIB_BRANCH=master
+    DEMO_NET_LIB_HASH=
+
+## usage
+
+    ./prepare.sh && gradle asB
+
+## implements
+
+    prepare.sh - parse gradle.properties to sync modules repos
+
+### app-demo/build.gradle
+
+    String compileLib(String libName) {
+        def name = libName.toUpperCase().replace("-", "_")
+        println "compileLib srcname " + libName + " prop name " + name
+        def libKeys = [ "VERSION", "LINK", "GROUP" ]
+        def libMap = [:]
+
+        for (k in libKeys) {
+            libMap.put(k, project.ext.properties.get(name + "_LIB_" + k))
+        }
+
+        libMap.each { println "$it.key: $it.value" }
+
+        def link = libMap.get("LINK")
+        def version = libMap.get("VERSION")
+        def group = libMap.get("GROUP")
+        if (link.equalsIgnoreCase("version")) {
+            println "compile version " + version
+            dependencies.compile "${group}:${libName}:${version}"
+        } else if (link.equalsIgnoreCase("git")) {
+            println "compile project " + libName
+            dependencies.compile project(":" + libName)
+        }
+    }
+
+    dependencies {
+        ...
+        compileLib("demo-net")
+        ...
+    }
